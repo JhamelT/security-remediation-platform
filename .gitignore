@@ -1,15 +1,75 @@
-﻿# Terraform
+﻿# ============================================
+# TERRAFORM STATE & SECRETS
+# ============================================
 .terraform/
 *.tfstate
+*.tfstate.*
 *.tfstate.backup
 terraform.tfvars
-# Python
+.terraform.lock.hcl
+
+# ============================================
+# PYTHON
+# ============================================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
 lambda/.terraform/
-# OS
+
+# ============================================
+# CLAUDE WORKING FILES - DO NOT COMMIT
+# ============================================
+mnt/
+unused/
+extras/
+
+# Planning/working documentation (not for public)
+STATUS_RESOLVED.md
+FILE_INVENTORY.md
+PROJECT_SUMMARY.md
+QUICKSTART.md
+QUICKSTART_WINDOWS.md
+RESUME_BULLETS.md
+DEPLOYMENT_CHECKLIST.md
+WHICH_GUIDE.md
+TERRAFORM_CODE_READABLE.txt
+TERRAFORM_FILES_README.md
+
+# .txt versions of Terraform files
+*.tf.txt
+main.tf.txt
+outputs.tf.txt
+variables.tf.txt
+
+# ============================================
+# AWS & SECRETS
+# ============================================
+*.pem
+*.key
+credentials
+config
+
+# ============================================
+# OS FILES
+# ============================================
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ============================================
 # IDE
+# ============================================
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# ============================================
+# LOGS
+# ============================================
+*.log
+
