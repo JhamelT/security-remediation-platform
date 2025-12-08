@@ -1,0 +1,6 @@
+# Lambda function dependencies
+# boto3 and botocore are provided by AWS Lambda runtime
+# urllib3 is also provided by AWS Lambda runtime
+
+# No external dependencies required for Phase 1
+# Add dependencies here as needed for future phases
