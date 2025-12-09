@@ -263,7 +263,7 @@ resource "aws_iam_role_policy" "remediation_permissions" {
 # Package Lambda function code
 data "archive_file" "remediation_lambda" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/remediate_credentials"
+  source_dir  = "${path.module}/../lambda/remediate_credentials"
   output_path = "${path.module}/.terraform/archive/remediate_credentials.zip"
 }
 
@@ -340,5 +340,9 @@ resource "aws_cloudwatch_event_target" "remediation_lambda" {
   retry_policy {
     maximum_event_age_in_seconds = 3600  # 1 hour
     maximum_retry_attempts  = 2
+  }
+
+  dead_letter_config {
+    arn = aws_sns_topic.security_alerts.arn
   }
 }
