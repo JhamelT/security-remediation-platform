@@ -263,7 +263,7 @@ resource "aws_iam_role_policy" "remediation_permissions" {
 # Package Lambda function code
 data "archive_file" "remediation_lambda" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda/remediate_credentials"
+  source_dir  = "${path.module}/./lambda/remediate_credentials"
   output_path = "${path.module}/.terraform/archive/remediate_credentials.zip"
 }
 
