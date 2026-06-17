@@ -180,7 +180,7 @@ security-remediation-platform/
 
 **Jha'Mel Thorne** - Cloud Engineer  
 📧 jhamelthorne@gmail.com  
-💼 [LinkedIn](https://linkedin.com/in/jhamelthorne)  
+💼 [LinkedIn](https://linkedin.com/in/jhamel-thorne)  
 🔗 [GitHub](https://github.com/jhamelt)  
 
 **AWS Certified:** Solutions Architect Associate, DevOps Engineer Professional  
