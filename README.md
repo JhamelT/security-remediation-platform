@@ -184,5 +184,5 @@ security-remediation-platform/
 🔗 [GitHub](https://github.com/jhamelt)  
 
 **AWS Certified:** Solutions Architect Associate, DevOps Engineer Professional  
-**Open to:** Cloud Engineering, DevSecOps, and Platform engineering roles  
+**Open to:** Cloud Engineering, DevOps, and Solutions Architect roles  
 **Location:** DC-VA Metro Area  
