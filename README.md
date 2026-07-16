@@ -2,7 +2,7 @@
 
 ## Architecture
 
-![Architecture Diagram](assets/architecture.png)
+![Architecture Diagram](assets/architecture.svg)
 
 **☁️ Deployed on AWS** | **⚡ Sub-60-Second Response**
 
