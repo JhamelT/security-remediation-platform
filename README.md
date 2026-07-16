@@ -2,7 +2,7 @@
 
 ![Architecture Diagram](./security-remediation-architecture.png)
 
-**📹 [Watch 5-Minute Demo](your-loom-link-here)** | **☁️ Deployed on AWS** | **⚡ Sub-60-Second Response**
+**☁️ Deployed on AWS** | **⚡ Sub-60-Second Response**
 
 ---
 
@@ -172,7 +172,6 @@ security-remediation-platform/
 
 - **[Architecture Deep Dive](./docs/ARCHITECTURE.md)** - Technical design decisions
 - **[Deployment Guide](./docs/DEPLOYMENT.md)** - Step-by-step setup
-- **[5-Minute Video Demo](your-loom-link)** - Architecture walkthrough
 
 ---
 
