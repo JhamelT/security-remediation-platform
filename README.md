@@ -1,6 +1,6 @@
 # AWS Security Remediation Platform
 
-![Architecture Diagram](./security-remediation-architecture.png)
+![Architecture Diagram](./security_remediation_architecture.svg)
 
 **☁️ Deployed on AWS** | **⚡ Sub-60-Second Response**
 
