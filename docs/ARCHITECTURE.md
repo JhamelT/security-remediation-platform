@@ -2,7 +2,7 @@
 
 ## System Overview
 
-The Security Remediation Platform is an event-driven security orchestration system that automatically detects and remediates security threats in AWS environments. Built on serverless AWS services, it achieves sub-60-second Mean Time to Remediation (MTTR) while maintaining complete audit trails and human oversight where required.
+The Security Remediation Platform is an event-driven security orchestration system that automatically detects and remediates security threats in AWS environments. Built on serverless AWS services, it remediates within 60 seconds of a GuardDuty finding (about 15 minutes wall-clock once GuardDuty's detection interval is included) while maintaining complete audit trails and human oversight where required.
 
 ## Architecture Principles
 
@@ -493,7 +493,7 @@ Region: us-east-1
 ### Our Platform
 
 **Cost**: $6-30/month  
-**MTTR**: <60 seconds  
+**MTTR**: <60 seconds after the GuardDuty finding (~15 minutes wall-clock)  
 **Pros**: AWS-native, serverless, infrastructure as code  
 **Cons**: Limited to AWS (no multi-cloud), fewer integrations
 

@@ -10,10 +10,10 @@
 
 ## 🎯 Overview
 
-Event-driven security automation platform that reduces Mean Time to Remediation (MTTR) from **2-4 hours to <60 seconds**—a **99% improvement**—using AWS serverless services.
+Event-driven security automation platform that remediates a compromised-credential finding **within 60 seconds of GuardDuty emitting it**, replacing a manual process that takes **2-4 hours**. Wall-clock time from attack to quarantine is **~15 minutes**, because GuardDuty publishes findings on a 15-minute cycle; the platform removes the human hours, not the detection interval.
 
 ### Business Impact
-- **MTTR Reduction:** 120-240x faster incident response
+- **MTTR:** 2-4 hours manual → ~15 minutes wall-clock (GuardDuty detection) + <60 seconds automated remediation
 - **Cost Efficiency:** $6/month vs $50K+ SOAR platforms (99% savings)
 - **Scalability:** Handles 100+ concurrent incidents automatically
 - **Compliance:** Complete CloudTrail audit trail for SOC 2, HIPAA, PCI-DSS
@@ -47,7 +47,8 @@ IAM Remediation: Deactivate keys + Quarantine policy
     ↓
 SNS Notification + Audit Logs
     ↓
-Total MTTR: <60 seconds
+Finding → quarantined: <60 seconds
+Attack → quarantined:  ~15 minutes (GuardDuty detection interval + remediation)
 ```
 
 ---
@@ -107,7 +108,8 @@ terraform apply
 
 | Metric | Manual | Automated | Improvement |
 |--------|--------|-----------|-------------|
-| MTTR | 2-4 hours | <60 seconds | **120-240x faster** |
+| Finding → remediation | 2-4 hours | <60 seconds | **human hours removed** |
+| Attack → remediation (wall-clock) | 2-4 hours + detection | ~15 minutes | bounded by GuardDuty's 15-min cycle |
 | Cost (monthly) | $50K-200K/year | $6-8/month | **99% reduction** |
 | Scalability | 1-2 concurrent | 1000+ concurrent | **500x scale** |
 | Error Rate | 5-10% (human) | <0.1% (automated) | **50-100x improvement** |
