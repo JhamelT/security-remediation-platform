@@ -40,7 +40,7 @@ output "region" {
 
 output "test_commands" {
   description = "Commands to test the security remediation platform"
-  value = <<-EOT
+  value       = <<-EOT
     # View Lambda logs:
     aws logs tail /aws/lambda/${aws_lambda_function.credential_remediation.function_name} --follow
 
