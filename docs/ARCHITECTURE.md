@@ -131,13 +131,14 @@ The Security Remediation Platform is an event-driven security orchestration syst
 {
   "Effect": "Allow",
   "Action": [
-    "iam:GetUser",
     "iam:ListAccessKeys",
     "iam:UpdateAccessKey",      // Deactivate compromised keys
     "iam:PutUserPolicy",         // Attach quarantine policy
     "iam:DeleteLoginProfile",    // Disable console access
     "secretsmanager:CreateSecret", // Store incident details
-    "sns:Publish"                // Send notifications
+    "sns:Publish",               // Send notifications (also the dead-letter target)
+    "logs:CreateLogStream",      // Own log group only
+    "logs:PutLogEvents"
   ]
 }
 ```
@@ -413,10 +414,13 @@ Region: us-east-1
 ### IAM Least Privilege
 
 **Lambda Execution Role**:
-- Scoped to specific resources: `arn:aws:iam::ACCOUNT:user/*`
-- Cannot delete IAM roles (only attach policies)
-- Cannot modify other Lambda functions
+- Four IAM actions, exactly the calls the function makes: `ListAccessKeys`, `UpdateAccessKey`, `PutUserPolicy`, `DeleteLoginProfile`, scoped to `arn:aws:iam::ACCOUNT:user/*`
+- No role, group, or managed-policy permissions, so the function cannot escalate its own access
+- Cannot create or delete access keys, users, or roles; keys are deactivated, never deleted
+- Secrets Manager writes limited to `PROJECT/incidents/*`; logs limited to its own log group; no AWS managed policies attached
 - Cannot access other accounts
+
+**Residual risk**: `iam:PutUserPolicy` on `user/*` can technically write any inline policy, not only the quarantine deny. The trigger is limited to GuardDuty findings (EventBridge rejects custom events that use an `aws.*` source), and the next control would be an SCP or permissions boundary protecting break-glass and admin users.
 
 **Human Access**:
 - Security team: Read-only access to findings and logs

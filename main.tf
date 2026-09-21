@@ -101,24 +101,10 @@ resource "aws_sns_topic_subscription" "email" {
   endpoint  = var.notification_email
 }
 
-resource "aws_sns_topic_policy" "security_alerts" {
-  arn = aws_sns_topic.security_alerts.arn
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "AllowLambdaPublish"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Action   = "SNS:Publish"
-        Resource = aws_sns_topic.security_alerts.arn
-      }
-    ]
-  })
-}
+# No topic policy. The Lambda publishes (including as its dead-letter target)
+# with its execution role, which the owning account already trusts. A statement
+# for the bare lambda.amazonaws.com service principal without an aws:SourceAccount
+# condition would let the Lambda service publish on behalf of ANY account.
 
 # ============================================================================
 # CLOUDWATCH LOG GROUP FOR LAMBDA
@@ -139,7 +125,7 @@ resource "aws_cloudwatch_log_group" "remediation_lambda" {
 # ============================================================================
 
 resource "aws_iam_role" "remediation_lambda" {
-  name               = "${local.name_prefix}-remediation-lambda-role"
+  name = "${local.name_prefix}-remediation-lambda-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -158,99 +144,53 @@ resource "aws_iam_role" "remediation_lambda" {
   }
 }
 
-# Lambda basic execution policy
-resource "aws_iam_role_policy_attachment" "lambda_basic" {
-  role       = aws_iam_role.remediation_lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
+# No AWSLambdaBasicExecutionRole: it grants logs actions on every log group.
+# The scoped WriteOwnLogs statement below replaces it.
 
 # Remediation permissions policy
 resource "aws_iam_role_policy" "remediation_permissions" {
   name = "${local.name_prefix}-remediation-permissions"
   role = aws_iam_role.remediation_lambda.id
 
+  # Least privilege: exactly the API calls lambda/remediate_credentials/main.py makes.
+  # No role, group, or managed-policy actions, so the function cannot grant itself
+  # more access (the old role/* AttachRolePolicy grant was a self-escalation path).
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "IAMUserManagement"
+        # Deactivate keys, write the inline deny-all quarantine policy, remove console password.
+        Sid    = "ContainCompromisedUser"
         Effect = "Allow"
         Action = [
-          "iam:GetUser",
           "iam:ListAccessKeys",
-          "iam:DeleteAccessKey",
-          "iam:DeactivateAccessKey",
           "iam:UpdateAccessKey",
-          "iam:CreateAccessKey",
-          "iam:ListAttachedUserPolicies",
-          "iam:ListUserPolicies",
-          "iam:AttachUserPolicy",
-          "iam:DetachUserPolicy",
           "iam:PutUserPolicy",
-          "iam:DeleteUserPolicy",
-          "iam:GetUserPolicy",
-          "iam:ListGroupsForUser",
-          "iam:RemoveUserFromGroup",
-          "iam:CreateLoginProfile",
-          "iam:DeleteLoginProfile",
-          "iam:GetLoginProfile"
+          "iam:DeleteLoginProfile"
         ]
         Resource = "arn:aws:iam::${local.account_id}:user/*"
       },
       {
-        Sid    = "IAMRoleManagement"
-        Effect = "Allow"
-        Action = [
-          "iam:GetRole",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy",
-          "iam:GetRolePolicy",
-          "iam:ListAttachedRolePolicies",
-          "iam:ListRolePolicies"
-        ]
-        Resource = "arn:aws:iam::${local.account_id}:role/*"
+        # Must match the path the code writes: f"{PROJECT_NAME}/incidents/{user}/{finding_id}".
+        # The previous prefix (name_prefix/*) never matched, so records silently failed.
+        Sid      = "RecordIncident"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:CreateSecret"]
+        Resource = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:${var.project_name}/incidents/*"
       },
       {
-        Sid    = "SecretsManagerAccess"
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:CreateSecret",
-          "secretsmanager:UpdateSecret",
-          "secretsmanager:PutSecretValue",
-          "secretsmanager:RotateSecret",
-          "secretsmanager:DescribeSecret",
-          "secretsmanager:GetSecretValue"
-        ]
-        Resource = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:${local.name_prefix}/*"
-      },
-      {
-        Sid    = "SNSPublish"
-        Effect = "Allow"
-        Action = [
-          "sns:Publish"
-        ]
+        # Notifications, and the topic doubles as the async dead-letter target.
+        Sid      = "NotifyAndDeadLetter"
+        Effect   = "Allow"
+        Action   = ["sns:Publish"]
         Resource = aws_sns_topic.security_alerts.arn
       },
       {
-        Sid    = "CloudWatchLogs"
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.name_prefix}-*"
-      },
-      {
-        Sid    = "GuardDutyRead"
-        Effect = "Allow"
-        Action = [
-          "guardduty:GetFindings",
-          "guardduty:ListFindings"
-        ]
-        Resource = "*"
+        # Only this function's own log group, which Terraform creates up front.
+        Sid      = "WriteOwnLogs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "${aws_cloudwatch_log_group.remediation_lambda.arn}:*"
       }
     ]
   })
@@ -279,11 +219,11 @@ resource "aws_lambda_function" "credential_remediation" {
 
   environment {
     variables = {
-      SNS_TOPIC_ARN           = aws_sns_topic.security_alerts.arn
-      SLACK_WEBHOOK_URL       = var.slack_webhook_url
-      AUTO_REMEDIATE_HIGH     = var.auto_remediate_high_severity
-      ENVIRONMENT             = var.environment
-      PROJECT_NAME            = var.project_name
+      SNS_TOPIC_ARN       = aws_sns_topic.security_alerts.arn
+      SLACK_WEBHOOK_URL   = var.slack_webhook_url
+      AUTO_REMEDIATE_HIGH = var.auto_remediate_high_severity
+      ENVIRONMENT         = var.environment
+      PROJECT_NAME        = var.project_name
     }
   }
 
@@ -338,8 +278,8 @@ resource "aws_cloudwatch_event_target" "remediation_lambda" {
   arn       = aws_lambda_function.credential_remediation.arn
 
   retry_policy {
-    maximum_event_age_in_seconds = 3600  # 1 hour
-    maximum_retry_attempts  = 2
+    maximum_event_age_in_seconds = 3600 # 1 hour
+    maximum_retry_attempts       = 2
   }
 
   dead_letter_config {
