@@ -136,7 +136,7 @@ The Security Remediation Platform is an event-driven security orchestration syst
     "iam:PutUserPolicy",         // Attach quarantine policy
     "iam:DeleteLoginProfile",    // Disable console access
     "secretsmanager:CreateSecret", // Store incident details
-    "sns:Publish",               // Send notifications (also the dead-letter target)
+    "sns:Publish",               // Send notifications
     "logs:CreateLogStream",      // Own log group only
     "logs:PutLogEvents"
   ]

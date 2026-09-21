@@ -89,7 +89,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Route to appropriate remediation handler
         actions_taken = []
         
-        if 'IAMUser' in resource_type:
+        user_type = resource.get('accessKeyDetails', {}).get('userType')
+
+        # GuardDuty reports IAM credential findings with resourceType "AccessKey".
+        # When the principal is an IAM user, contain the whole user (all keys,
+        # quarantine policy, console access), not just the one key.
+        if 'IAMUser' in resource_type or ('AccessKey' in resource_type and user_type == 'IAMUser'):
             actions_taken = remediate_iam_user(detail)
         elif 'AccessKey' in resource_type:
             actions_taken = remediate_access_key(detail)

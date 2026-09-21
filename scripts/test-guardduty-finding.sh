@@ -32,11 +32,11 @@ echo
 # Function to create test IAM user
 create_test_user() {
     local username=$1
-    echo -e "${YELLOW}Creating test IAM user: $username${NC}"
+    echo -e "${YELLOW}Creating test IAM user: $username${NC}" >&2
     
     # Check if user exists
     if aws iam get-user --user-name "$username" >/dev/null 2>&1; then
-        echo -e "${YELLOW}User $username already exists. Deleting existing user...${NC}"
+        echo -e "${YELLOW}User $username already exists. Deleting existing user...${NC}" >&2
         
         # Delete existing access keys
         aws iam list-access-keys --user-name "$username" --query 'AccessKeyMetadata[].AccessKeyId' --output text | \
@@ -65,17 +65,15 @@ create_test_user() {
     fi
     
     # Create new user
-    aws iam create-user --user-name "$username" --tags Key=Purpose,Value=SecurityTesting Key=Environment,Value=dev
-    echo -e "${GREEN}✓ User created: $username${NC}"
+    aws iam create-user --user-name "$username" --tags Key=Purpose,Value=SecurityTesting Key=Environment,Value=dev >/dev/null
+    echo -e "${GREEN}✓ User created: $username${NC}" >&2
     
     # Create access key
     ACCESS_KEY_JSON=$(aws iam create-access-key --user-name "$username")
     ACCESS_KEY_ID=$(echo "$ACCESS_KEY_JSON" | jq -r '.AccessKey.AccessKeyId')
-    SECRET_ACCESS_KEY=$(echo "$ACCESS_KEY_JSON" | jq -r '.AccessKey.SecretAccessKey')
     
-    echo -e "${GREEN}✓ Access key created: $ACCESS_KEY_ID${NC}"
-    echo -e "${YELLOW}  Secret: $SECRET_ACCESS_KEY${NC}"
-    echo
+    echo -e "${GREEN}✓ Access key created: $ACCESS_KEY_ID${NC}" >&2
+    echo >&2
     
     # Return values
     echo "$ACCESS_KEY_ID"
@@ -144,10 +142,16 @@ EOF
     
     # Invoke Lambda
     echo -e "${YELLOW}Invoking Lambda function...${NC}"
-    RESPONSE=$(aws lambda invoke \
+    # AWS CLI v2 treats --payload as base64 unless told otherwise.
+    if ! RESPONSE=$(aws lambda invoke \
         --function-name "$lambda_name" \
+        --cli-binary-format raw-in-base64-out \
         --payload file:///tmp/test-guardduty-event.json \
-        /tmp/lambda-response.json 2>&1)
+        /tmp/lambda-response.json 2>&1); then
+        echo -e "${RED}✗ Lambda invoke failed:${NC}"
+        echo "$RESPONSE"
+        exit 1
+    fi
     
     echo -e "${GREEN}✓ Lambda invoked${NC}"
     echo
@@ -168,7 +172,7 @@ ACCESS_KEY_ID=$(create_test_user "$TEST_USERNAME")
 
 # Get Lambda function name from Terraform output
 echo -e "${YELLOW}Getting Lambda function name from Terraform...${NC}"
-LAMBDA_NAME=$(cd terraform && terraform output -raw lambda_function_name 2>/dev/null) || LAMBDA_NAME="security-remediation-dev-credential-remediation"
+LAMBDA_NAME=$(terraform output -raw lambda_function_name 2>/dev/null) || LAMBDA_NAME="security-remediation-dev-credential-remediation"
 
 if [ -z "$LAMBDA_NAME" ]; then
     echo -e "${RED}Error: Could not find Lambda function name${NC}"
@@ -198,7 +202,7 @@ fi
 echo
 
 echo -e "${YELLOW}2. Checking for quarantine policy...${NC}"
-POLICY_EXISTS=$(aws iam get-user-policy --user-name "$TEST_USERNAME" --policy-name "security-remediation-quarantine-policy" 2>/dev/null && echo "yes" || echo "no")
+POLICY_EXISTS=$(aws iam get-user-policy --user-name "$TEST_USERNAME" --policy-name "security-remediation-quarantine-policy" >/dev/null 2>&1 && echo "yes" || echo "no")
 if [ "$POLICY_EXISTS" == "yes" ]; then
     echo -e "${GREEN}✓ Quarantine policy successfully attached${NC}"
 else

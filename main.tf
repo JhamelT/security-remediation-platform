@@ -101,7 +101,7 @@ resource "aws_sns_topic_subscription" "email" {
   endpoint  = var.notification_email
 }
 
-# No topic policy. The Lambda publishes (including as its dead-letter target)
+# No topic policy. The Lambda publishes
 # with its execution role, which the owning account already trusts. A statement
 # for the bare lambda.amazonaws.com service principal without an aws:SourceAccount
 # condition would let the Lambda service publish on behalf of ANY account.
@@ -179,8 +179,8 @@ resource "aws_iam_role_policy" "remediation_permissions" {
         Resource = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:${var.project_name}/incidents/*"
       },
       {
-        # Notifications, and the topic doubles as the async dead-letter target.
-        Sid      = "NotifyAndDeadLetter"
+        # Remediation and error notifications.
+        Sid      = "Notify"
         Effect   = "Allow"
         Action   = ["sns:Publish"]
         Resource = aws_sns_topic.security_alerts.arn
@@ -282,7 +282,40 @@ resource "aws_cloudwatch_event_target" "remediation_lambda" {
     maximum_retry_attempts       = 2
   }
 
+  # EventBridge only accepts an SQS queue as a dead-letter target (SNS is rejected).
+  # Events that still fail delivery after the retries above land here for replay.
   dead_letter_config {
-    arn = aws_sns_topic.security_alerts.arn
+    arn = aws_sqs_queue.eventbridge_dlq.arn
   }
+}
+
+resource "aws_sqs_queue" "eventbridge_dlq" {
+  name                      = "${local.name_prefix}-remediation-dlq"
+  message_retention_seconds = 1209600 # 14 days, the SQS maximum
+  sqs_managed_sse_enabled   = true    # SSE-SQS; the AWS managed KMS key can't be used by EventBridge
+
+  tags = {
+    Name = "${local.name_prefix}-remediation-dlq"
+  }
+}
+
+resource "aws_sqs_queue_policy" "eventbridge_dlq" {
+  queue_url = aws_sqs_queue.eventbridge_dlq.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # Only this rule may write here, which blocks confused-deputy use of the queue.
+        Sid       = "AllowOnlyThisRule"
+        Effect    = "Allow"
+        Principal = { Service = "events.amazonaws.com" }
+        Action    = "sqs:SendMessage"
+        Resource  = aws_sqs_queue.eventbridge_dlq.arn
+        Condition = {
+          ArnEquals = { "aws:SourceArn" = aws_cloudwatch_event_rule.guardduty_findings.arn }
+        }
+      }
+    ]
+  })
 }

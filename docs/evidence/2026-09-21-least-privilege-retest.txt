@@ -1,0 +1,38 @@
+Security Remediation Platform - retest after least-privilege IAM fix
+Date: 2026-09-21 (us-east-1)
+Access key ID masked; the key was deactivated by the function and then deleted by cleanup.
+
+Change under test
+- Remediation role reduced from 26 IAM actions (incl. role/* AttachRolePolicy, a self-escalation path)
+  to the four calls the code makes: ListAccessKeys, UpdateAccessKey, PutUserPolicy, DeleteLoginProfile.
+- Secrets Manager CreateSecret scoped to the path the code actually writes (security-remediation/incidents/*).
+  Before: the policy allowed security-remediation-dev/*, so every incident record was silently denied.
+- EventBridge dead-letter target moved from SNS (rejected by EventBridge) to an SSE-SQS queue
+  writable only by this rule (aws:SourceArn condition).
+- GuardDuty "AccessKey" findings for IAM users now route to full user containment.
+
+$ terraform apply
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+
+$ bash scripts/test-guardduty-finding.sh
+Creating test IAM user: test-compromised-user-1790023524
+Finding Type: UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS
+Lambda Response:
+{
+  "statusCode": 200,
+  "body": "{\"message\": \"Remediation completed successfully\", \"findingId\": \"test-finding-1790023527\", \"findingType\": \"UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS\", \"actionsTaken\": [\"Deactivated access key AKIA****************\", \"Attached quarantine deny policy to test-compromised-user-1790023524\"], \"remediated\": true}"
+}
+1. Checking access key status...
+  Access key successfully deactivated
+
+$ aws secretsmanager list-secrets --filters Key=name,Values=security-remediation/incidents --query 'SecretList[].Name'
+[
+    "security-remediation/incidents/test-compromised-user-1790023524/test-finding-1790023527"
+]
+
+$ aws logs filter-log-events --log-group-name /aws/lambda/security-remediation-dev-credential-remediation \
+    --filter-pattern "?AccessDenied ?\"Failed to store\"" --query 'events[].message'
+[]
+
+Result: containment actions succeeded under the reduced role, the incident record was written for the
+first time, and no permission denials were logged.
