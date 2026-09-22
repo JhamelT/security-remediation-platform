@@ -28,5 +28,4 @@ tags = {
   Purpose     = "AutomatedSecurityResponse"
 }
 
-# Protected users:
-protected_users = ["jthorne", "Jthorne2"]
+protected_users = ["your-admin-user", "break-glass-user"]
