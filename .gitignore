@@ -75,3 +75,6 @@ desktop.ini
 # ============================================
 *.log
 
+# Protected users:
+protected_users = ["jthorne", "Jthorne2"]
+
