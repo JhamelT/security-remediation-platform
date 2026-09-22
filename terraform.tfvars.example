@@ -27,3 +27,6 @@ tags = {
   Environment = "dev"
   Purpose     = "AutomatedSecurityResponse"
 }
+
+# Protected users:
+protected_users = ["jthorne", "Jthorne2"]
