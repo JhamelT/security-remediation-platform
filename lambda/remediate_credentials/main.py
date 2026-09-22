@@ -31,6 +31,14 @@ AUTO_REMEDIATE_HIGH = os.environ.get('AUTO_REMEDIATE_HIGH', 'True').lower() == '
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 PROJECT_NAME = os.environ.get('PROJECT_NAME', 'security-remediation')
 
+# Identities automated containment must never touch: admins, break-glass, and
+# anything whose lockout would remove your own way back in. GuardDuty's anomalous
+# behavior detectors fire on legitimate bulk admin work, so this list is the
+# difference between containing an attacker and locking yourself out of the account.
+PROTECTED_USERS = {
+    u.strip() for u in os.environ.get('PROTECTED_USERS', '').split(',') if u.strip()
+}
+
 # HTTP client for Slack
 http = urllib3.PoolManager()
 
@@ -90,6 +98,38 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         actions_taken = []
         
         user_type = resource.get('accessKeyDetails', {}).get('userType')
+        user_name = (resource.get('accessKeyDetails', {}).get('userName')
+                     or resource.get('iamUserDetails', {}).get('userName'))
+
+        # Guard rail: alert, never contain, for root and protected identities.
+        if user_type == 'Root' or (user_name and user_name in PROTECTED_USERS):
+            subject = f"MANUAL REVIEW: protected identity {user_name or 'root'}"
+            print(json.dumps({
+                'guard': 'protected_identity',
+                'user': user_name or 'root',
+                'finding_type': finding_type,
+                'finding_id': finding_id,
+                'action': 'notified_only',
+            }))
+            send_notification(
+                severity=get_severity_label(severity),
+                finding_type=finding_type,
+                title=f"{subject}. No automated action taken.",
+                actions_taken=[
+                    'Containment skipped: identity is on the protected list',
+                    'Review the finding and act manually if it is genuine',
+                ],
+                finding_id=finding_id,
+            )
+            return {
+                'statusCode': 200,
+                'body': json.dumps({
+                    'message': 'Protected identity: notified without remediating',
+                    'findingId': finding_id,
+                    'user': user_name or 'root',
+                    'remediated': False,
+                }),
+            }
 
         # GuardDuty reports IAM credential findings with resourceType "AccessKey".
         # When the principal is an IAM user, contain the whole user (all keys,

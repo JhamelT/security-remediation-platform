@@ -224,6 +224,7 @@ resource "aws_lambda_function" "credential_remediation" {
       AUTO_REMEDIATE_HIGH = var.auto_remediate_high_severity
       ENVIRONMENT         = var.environment
       PROJECT_NAME        = var.project_name
+      PROTECTED_USERS     = join(",", var.protected_users)
     }
   }
 

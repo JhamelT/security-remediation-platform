@@ -23,6 +23,12 @@ variable "slack_webhook_url" {
   sensitive   = true
 }
 
+variable "protected_users" {
+  description = "IAM user names automated containment must never act on (admins, break-glass). Findings for these are alerted, not remediated."
+  type        = list(string)
+  default     = []
+}
+
 variable "notification_email" {
   description = "Email address for SNS notifications"
   type        = string

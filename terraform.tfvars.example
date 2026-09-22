@@ -13,6 +13,10 @@ enable_guardduty = true
 enable_config    = false  # Phase 2
 enable_inspector = false  # Phase 2
 
+# Identities the automation must never contain (admins, break-glass users).
+# Leave empty only if you have a tested recovery path that does not depend on them.
+protected_users = ["jthorne", "Jthorne2"]
+
 # Remediation Settings
 auto_remediate_high_severity = true  # Auto-remediate severity >= 4.0
 
