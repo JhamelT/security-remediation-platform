@@ -6,7 +6,7 @@ project_name = "security-remediation"
 environment  = "dev"
 
 # Required: Your email for SNS notifications
-notification_email = "jhamelthorne@gmail.com"
+notification_email = "you@example.com"
 
 # Feature Flags
 enable_guardduty = true
